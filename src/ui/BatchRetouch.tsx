@@ -3,11 +3,11 @@ import { useStore } from '../state/store'
 import { getParsing } from '../engine/parsing'
 import { computeEdit } from '../engine/edit'
 import { DEFAULT_EDIT_SETTINGS } from '../engine/types'
-import { downloadBlob, exportPng } from '../engine/export'
+import { downloadBlob, exportPng, exportZip, type ZipEntry } from '../engine/export'
 
 /**
- * Runs a conservative, on-device retouch pass over every loaded photo with a detected face.
- * Each result is downloaded separately so Android/Chrome can save it to Downloads/Gallery.
+ * Retouches loaded portraits locally, then packages successful results into one ZIP.
+ * Android browsers choose the download location; the app cannot silently write to Gallery.
  */
 export function BatchRetouch() {
   const faces = useStore((s) => s.faces)
@@ -22,8 +22,9 @@ export function BatchRetouch() {
     setRunning(true)
     setDone(0)
     setStatus('Preparing natural retouch…')
-    let saved = 0
     let failed = 0
+    const results: ZipEntry[] = []
+    const usedNames = new Set<string>()
 
     // Gentle defaults: preserve facial geometry and avoid strong smoothing.
     const naturalSettings = {
@@ -54,18 +55,33 @@ export function BatchRetouch() {
           const parsing = await getParsing(face)
           const result = await computeEdit(face, parsing, naturalSettings)
           const blob = await exportPng(result, 1)
-          const safeName = face.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || `portrait-${i + 1}`
-          downloadBlob(blob, `${safeName}-retouched.png`)
-          saved++
-          // Give Chrome time to register each download on Android.
-          await new Promise((resolve) => setTimeout(resolve, 350))
+          const baseName = face.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || `portrait-${i + 1}`
+          let filename = `${baseName}-retouched.png`
+          if (usedNames.has(filename.toLowerCase())) filename = `${baseName}-${i + 1}-retouched.png`
+          usedNames.add(filename.toLowerCase())
+          results.push({ name: filename, blob })
         } catch (error) {
           console.error('Batch retouch failed for', face.name, error)
           failed++
         }
         setDone(i + 1)
+        // Let the mobile browser paint progress between compute-heavy photos.
+        await new Promise((resolve) => setTimeout(resolve, 0))
       }
-      setStatus(`Finished: ${saved} saved, ${failed} failed. Check Downloads or Gallery.`)
+
+      if (results.length === 0) {
+        setStatus(`No photos could be retouched. ${failed} failed; check that faces are detected and try again.`)
+        return
+      }
+
+      setStatus(`Packaging ${results.length} edited photo${results.length === 1 ? '' : 's'} into one ZIP…`)
+      const archive = await exportZip(results)
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      downloadBlob(archive, `facestudio-retouched-${stamp}.zip`)
+      setStatus(`Finished: ${results.length} saved in one ZIP, ${failed} failed. Open Downloads to extract your portraits.`)
+    } catch (error) {
+      console.error('Batch export failed', error)
+      setStatus('The batch could not be packaged. Try a smaller batch or check available phone storage.')
     } finally {
       setRunning(false)
     }
@@ -77,11 +93,11 @@ export function BatchRetouch() {
     <section className="card p-3 mt-3 flex flex-col gap-2">
       <h3 className="text-sm font-semibold text-content">Batch natural retouch</h3>
       <p className="text-xs text-muted">
-        Retouches all loaded photos with detected faces on this device. Gentle skin smoothing;
-        facial shape is unchanged. Photos are not uploaded.
+        Retouches all loaded photos with detected faces on this device, then downloads one ZIP.
+        Gentle skin smoothing; facial shape is unchanged. Photos are not uploaded.
       </p>
       <button className="btn-accent w-full text-xs" disabled={running || eligibleCount === 0} onClick={runBatch}>
-        {running ? 'Processing batch…' : `Retouch & save ${eligibleCount} photo${eligibleCount === 1 ? '' : 's'}`}
+        {running ? 'Processing batch…' : `Retouch & download ZIP (${eligibleCount} photo${eligibleCount === 1 ? '' : 's'})`}
       </button>
       {running && (
         <div className="h-1.5 rounded-full bg-surface3 overflow-hidden">
