@@ -2,7 +2,7 @@ name: Batch retouch branch checks
 
 on:
   push:
-    branches: [batch-retouch-export]
+    branches: [ai-prompt-editing]
   pull_request:
     branches: [master]
   workflow_dispatch:
