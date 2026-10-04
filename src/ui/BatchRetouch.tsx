@@ -130,6 +130,11 @@ export function BatchRetouch() {
       <button className="btn-accent w-full text-xs" disabled={running || eligibleCount === 0} onClick={runBatch}>
         {running ? 'Processing batch…' : `Retouch & download ZIP (${eligibleCount} photo${eligibleCount === 1 ? '' : 's'})`}
       </button>
+      {shareEntries.length > 0 && (
+        <button className="btn w-full text-xs" disabled={running || sharing} onClick={shareRetouchedPhotos}>
+          {sharing ? 'Opening Android share menu…' : `Share ${shareEntries.length} retouched photo${shareEntries.length === 1 ? '' : 's'} to an app`}
+        </button>
+      )}
       {running && (
         <div className="h-1.5 rounded-full bg-surface3 overflow-hidden">
           <div className="h-full bg-accent transition-[width]" style={{ width: `${eligibleCount ? (done / eligibleCount) * 100 : 0}%` }} />
