@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useStore, type Mode } from '../state/store'
 import { FaceTray } from '../ui/FaceTray'
+import { BatchRetouch } from '../ui/BatchRetouch'
+import { AIPromptEditor } from '../ui/AIPromptEditor'
 import { Stage } from '../ui/Stage'
 import { Controls } from '../ui/Controls'
 import { WebcamModal } from '../ui/Webcam'
@@ -157,6 +159,8 @@ export default function App() {
       <main className="flex-1 flex flex-col gap-3 p-3 sm:px-4 md:grid md:grid-cols-[264px_1fr_292px] md:min-h-0 md:overflow-hidden">
         <aside className="panel p-3 order-2 md:order-1 md:min-h-0 md:overflow-hidden">
           <FaceTray onWebcam={() => setWebcam(true)} onEdit={setEditId} />
+          <BatchRetouch />
+          <AIPromptEditor />
         </aside>
         <section className="panel flex flex-col order-1 md:order-2 min-h-[55vh] md:min-h-0 overflow-hidden">
           <Stage />
@@ -174,7 +178,7 @@ export default function App() {
       </main>
 
       <footer className="px-4 py-3 text-center text-[11px] text-faint">
-        100% local · your photos never leave your device · anonymous usage analytics only
+        Local tools stay on-device. AI prompt editing sends selected photos to the configured AI provider.
       </footer>
 
       {webcam && <WebcamModal onClose={() => setWebcam(false)} />}
