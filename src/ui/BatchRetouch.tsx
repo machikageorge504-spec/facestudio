@@ -14,6 +14,8 @@ export function BatchRetouch() {
   const [running, setRunning] = useState(false)
   const [status, setStatus] = useState('')
   const [done, setDone] = useState(0)
+  const [shareEntries, setShareEntries] = useState<ZipEntry[]>([])
+  const [sharing, setSharing] = useState(false)
 
   const runBatch = async () => {
     const eligible = faces.filter((face) => face.landmarks && !face.failed && !face.detecting)
@@ -21,6 +23,7 @@ export function BatchRetouch() {
 
     setRunning(true)
     setDone(0)
+    setShareEntries([])
     setStatus('Preparing natural retouch…')
     let failed = 0
     const results: ZipEntry[] = []
@@ -75,6 +78,7 @@ export function BatchRetouch() {
       }
 
       setStatus(`Packaging ${results.length} edited photo${results.length === 1 ? '' : 's'} into one ZIP…`)
+      setShareEntries(results)
       const archive = await exportZip(results)
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
       downloadBlob(archive, `facestudio-retouched-${stamp}.zip`)
@@ -84,6 +88,33 @@ export function BatchRetouch() {
       setStatus('The batch could not be packaged. Try a smaller batch or check available phone storage.')
     } finally {
       setRunning(false)
+    }
+  }
+
+  const shareRetouchedPhotos = async () => {
+    if (!shareEntries.length || sharing) return
+    const nav = navigator as Navigator & {
+      canShare?: (data?: ShareData) => boolean
+      share?: (data?: ShareData) => Promise<void>
+    }
+    const files = shareEntries.map((entry) => new File([entry.blob], entry.name, { type: 'image/png' }))
+    if (!nav.share || !nav.canShare?.({ files })) {
+      setStatus('This browser cannot share multiple images directly. Your ZIP is still in Downloads; extract it and use your Gallery app to import the photos.')
+      return
+    }
+    setSharing(true)
+    try {
+      await nav.share({ files, title: 'FaceStudio retouched photos', text: 'Retouched on this device.' })
+      setStatus(`Shared ${files.length} retouched photo${files.length === 1 ? '' : 's'}. Choose a compatible Photos or Gallery destination if it appears.`)
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        setStatus('Sharing cancelled. Your ZIP remains available in Downloads.')
+      } else {
+        console.error('Sharing retouched photos failed', error)
+        setStatus('Sharing was unavailable. Your ZIP remains available in Downloads.')
+      }
+    } finally {
+      setSharing(false)
     }
   }
 
