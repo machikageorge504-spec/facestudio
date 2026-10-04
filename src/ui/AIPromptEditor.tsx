@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { downloadBlob, exportZip, type ZipEntry } from '../engine/export'
+import { exportZip, type ZipEntry } from '../engine/export'
 
 type Preview = { name: string; url: string }
 type ApiResponse = { image?: string; mimeType?: string; error?: string }
