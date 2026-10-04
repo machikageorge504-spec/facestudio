@@ -2,7 +2,7 @@ name: Deploy batch-retouch preview
 
 on:
   push:
-    branches: [batch-retouch-export]
+    branches: [ai-prompt-editing]
   workflow_dispatch:
 
 permissions:
@@ -31,6 +31,8 @@ jobs:
       - name: Unit tests
         run: npm test
       - name: Build
+        env:
+          VITE_AI_EDIT_API_URL: ${{ vars.VITE_AI_EDIT_API_URL }}
         run: npm run build
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
